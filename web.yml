@@ -1,21 +1,18 @@
 - hosts: all
   tasks:
-
-  - name: 'Atualizando pacotes'
-    shell: 'sudo apt-get update'
-
+  
   - name: 'Instalando pacotes'
-    apt:
-      name: "{{ item }}"
-      state: latest
-    become: yes
-    with_items:
+    ansible.builtin.apt:
+      pkg:
       - nginx
       - python3
       - build-essential
       - git
       - supervisor
       - pkg-config
+      state: latest
+      update_cache: yes
+    become: yes
 
   - name: "Habilitar aplicação do Nginx"
     shell: ufw allow 'Nginx FULL'
