@@ -1,85 +1,83 @@
 - hosts: all
-  handlers:
-    - name: restart nginx
-      service:
-        name: nginx
-        state: restarted
-      become: yes
-  
   tasks:
-    - name: Instalando pacotes
-      ansible.builtin.apt:
-        pkg:
-        - nginx
-        - python3
-        - build-essential
-        - git
-        - supervisor
-        - pkg-config
-        state: latest
-        update_cache: yes
-      become: yes
-    - name: Habilitar aplicação do Nginx
-      shell: ufw allow 'Nginx FULL'
-      become: yes
+
+  - name: 'Atualizando pacotes'
+    shell: 'sudo apt-get update'
+
+  - name: 'Instalando pacotes'
+    apt:
+      name: "{{ item }}"
+      state: latest
+    become: yes
+    with_items:
+      - nginx
+      - python3
+      - build-essential
+      - git
+      - supervisor
+      - pkg-config
+
+  - name: "Habilitar aplicação do Nginx"
+    shell: ufw allow 'Nginx FULL'
+    become: yes
     
-    - name: "Definindo IP publico"
-      shell: ip addr show eth0 | grep inet | awk '{ print $2; }' | sed 's/\/.*$//'
+  - name: "Definindo IP publico"
+    shell: ip addr show eth0 | grep inet | awk '{ print $2; }' | sed 's/\/.*$//'
       
-    - name: "Verificar se o IP está visivel na web"
-      shell: curl -4 icanhazip.com
+  - name: "Verificar se o IP está visivel na web"
+    shell: curl -4 icanhazip.com
 
-    - name: "Copiando configuração de app.nginx para /etc/nginx/sites-available/app"
-      copy:
-        src: '/Users/bmota/Desktop/DevOps/NGINX-REVERSEPROXY/app'
-        dest: '/etc/nginx/sites-available/app'
-      become: yes
+  - name: "Copiando configuração de app.nginx para /etc/nginx/sites-available/app"
+    copy:
+      src: '/Users/bmota/Desktop/DevOps/NGINX-REVERSEPROXY/app'
+      dest: '/etc/nginx/sites-available/app'
+    become: yes
 
-    - name: "Ativando o site" 
-      file:
-        src: "/etc/nginx/sites-available/app"
-        dest: "/etc/nginx/sites-enabled"
-        state: hard
-      become: yes
+  - name: "Ativando o site" 
+    file:
+      src: "/etc/nginx/sites-available/app"
+      dest: "/etc/nginx/sites-enabled"
+      state: hard
+    become: yes
 
-    - name: "Desvinculando o site default"
-      file:
-        path: "/etc/nginx/sites-enabled/default"
-        state: absent
-      become: yes
+  - name: "Desvinculando o site default"
+    file:
+      path: "/etc/nginx/sites-enabled/default"
+      state: absent
+    become: yes 
 
-    - name: Mantém configuração após reload do nginx
-      shell: nginx -t
-      become: yes
+  - name: "Reinicia o NGINX"
+    shell: systemctl reload nginx
+    become: yes
 
-    - name: 'Criando diretorio /opt/app'
-      file:
-        path: /opt/app
-        mode: 775
-        owner: www-data
-        state: directory
-      become: yes
+  - name: "Mantém configuração após reload do nginx"
+    shell: nginx -t
+    become: yes
 
-    - name: Copiando arquivo http_server.py para /opt/app
-      ansible.builtin.copy:
-      src: /Users/bmota/Desktop/DevOps/NGINX-REVERSEPROXY/http_server.py
-      dest: /opt/app/
-      become: yes
+  - name: 'Criando diretorio /opt/app'
+    file:
+      path: /opt/app
+      mode: 775
+      owner: www-data
+      state: directory
+    become: yes
 
-    - name: Criando a entrada app para o supervisord
-      ansible.builtin.copy:
-      src: /Users/bmota/Desktop/DevOps/NGINX-REVERSEPROXY/app.conf
-      dest: /etc/supervisor/conf.d/
-      become: yes
+  - name: "Copiando arquivo http_server.py para /opt/app"
+    copy:
+      src: '/Users/bmota/Desktop/DevOps/NGINX-REVERSEPROXY/http_server.py'
+      dest: '/opt/app/'
+    become: yes  
 
-    - name: "Reiniciando o Supervisord"
-      shell: systemctl restart supervisor
-      become: yes
+  - name: "Criando a entrada app para o supervisord"
+    copy:
+      src: '/Users/bmota/Desktop/DevOps/NGINX-REVERSEPROXY/app.conf'
+      dest: '/etc/supervisor/conf.d/'
+    become: yes
 
-    - name: "Iniciando o Supervisord"
-      shell: systemctl start supervisor
-      become: yes
+  - name: "Reiniciando o Supervisord"
+    shell: systemctl restart supervisor
+    become: yes
 
-      notify: 
-        - restart nginx
-    
+  - name: "Iniciando o Supervisord"
+    shell: systemctl start supervisor
+    become: yes
